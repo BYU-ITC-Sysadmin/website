@@ -1,7 +1,7 @@
 {
     "site_name": "Test Blog",
     "welcome_text": "Hello, this is BetterBlog, totally secure and not buggy blogging platform. <br>Now with Redis! <script>alert(\"XSS!\")</script>",
-    "database_host": "172.16.3.105",
+    "database_host": "127.0.0.1",
     "backup_user": "admin",
     "backup_password": "admin"
 }
