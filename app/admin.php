@@ -87,12 +87,6 @@
                 $redis->set("user_" . $_SESSION['logged_in_user'] , $_POST['password']);
             }
             $action = 'users';
-        } elseif ($action == "ping") {
-            echo "<pre>";
-            echo "$ ping " . $_POST['pinghost'] . "\n";
-            passthru('ping ' . $_POST['pinghost']);
-            echo "</pre>";
-            $action = 'tools';
         } elseif ($action == "getusage") {
             
             $total = 0;
@@ -109,13 +103,7 @@
     
     if (array_key_exists("action", $_GET)) {
         $action = $_GET['action'];
-        if ($action == "download") {
-            header('Content-Type: application/octet-stream');
-            header("Content-Transfer-Encoding: Binary"); 
-            header("Content-disposition: attachment; filename=\"" . basename($_GET['path']) . "\""); 
-            readfile($_GET['path']); 
-            $action = "files";
-        } elseif ($action == "logout") {
+        if ($action == "logout") {
             $_SESSION['logged_in_user'] = "";
             $protocol = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
             $actual_link = $protocol . "logout@$_SERVER[HTTP_HOST]/admin.php?loggedout=1";
