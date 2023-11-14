@@ -208,9 +208,7 @@ if ((!array_key_exists('logged_in_user', $_SESSION)) || $_SESSION['logged_in_use
                     </p>
                     <ul class="menu-list">
                         <li><a <?php if ($action=="users") { echo 'class="is-active"';} ?> href="admin.php?action=users">Users</a></li>
-                        <li><a <?php if ($action=="config") { echo 'class="is-active"';} ?> href="admin.php?action=config">Configuration</a></li>
                         <li><a <?php if ($action=="files") { echo 'class="is-active"';} ?> href="admin.php?action=files">File Management</a></li>
-                        <li><a <?php if ($action=="tools") { echo 'class="is-active"';} ?> href="admin.php?action=tools">Server Tools</a></li>
                     </ul>
                     <p class="menu-label">
                         Other
@@ -569,7 +567,6 @@ if ((!array_key_exists('logged_in_user', $_SESSION)) || $_SESSION['logged_in_use
                         }
                         echo "</ul>";
                     ?>
-
                         <div class="box">
                             <form action="admin.php" method="post" enctype="multipart/form-data">
                                 Select image to upload:
@@ -578,53 +575,8 @@ if ((!array_key_exists('logged_in_user', $_SESSION)) || $_SESSION['logged_in_use
                                 <input type="hidden" value="upload" name="action">
                                 <input type="hidden" value="<?php echo $_SESSION['dir']; ?>" name="dest_dir">
                             </form>
-                        </div>
-                                        
+                        </div>              
                     </div>
-                <?php elseif ($action == "tools"): ?>
-                <h2 class="title is-h2">Tools</h2>
-
-                <div class="box">
-                    <form action="admin.php" method="post">
-                        <div class="field">
-                            <label class="label">Ping</label>
-                            <div class="control">
-                                <input class="input" type="text" name="pinghost">
-                            </div>
-                        </div>
-
-                        <div class="field is-grouped">
-                            <div class="control">
-                                <input type="submit" class="button is-link" value="Ping"/>
-                                <input type="hidden" name="action" value="ping"/>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                <div class="box">
-                    <form action="admin.php" method="post">
-                        <div class="field">
-                            <label class="label">Get Disk Usage</label>
-                            <div class="control">
-                                <label class="checkbox">
-                                    <input type="checkbox" name="dirs[]" value="pages">
-                                    pages
-                                </label>
-                                <label class="checkbox">
-                                    <input type="checkbox" name="dirs[]" value="posts">
-                                    posts
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="field is-grouped">
-                            <div class="control">
-                                <input type="submit" class="button is-link" value="Submit"/>
-                                <input type="hidden" name="action" value="getusage"/>
-                            </div>
-                        </div>
-                    </form>
-                </div>
 
                 <?php else:?>
                     <div class="notification is-danger">
