@@ -6,17 +6,7 @@
 
     if (array_key_exists("action", $_POST)) {
         $action = $_POST['action'];
-        
-        if ($action == "config") {
-            $new_data = array();
-            foreach ($_POST as $key => $val) {
-                if ($key != "action") {
-                    $new_data[$key] = $val;
-                }
-            }
-            $new_json = json_encode($new_data, JSON_PRETTY_PRINT);
-            file_put_contents("./config.json", $new_json);
-        } elseif ($action == "upload") {
+        if ($action == "upload") {
 
             $destination = $_POST['dest_dir'] . "/" . basename($_FILES["upload_file"]["name"]);
             if (move_uploaded_file($_FILES["upload_file"]["tmp_name"], $destination)) {
@@ -37,7 +27,8 @@
             file_put_contents("pages/" . $page, $content);
 
             if ($DB_AVAILABLE) {
-                $query = "SELECT * FROM pages WHERE filename='$page'";
+                $query = $mysqli->prepare("SELECT * FROM pages WHERE filename='?'");
+                $query->bind_param("s", $page);
                 $result = $mysqli->query($query);
 
                 if (!$result) {
@@ -45,9 +36,11 @@
                 } else {
                     $query = "";
                     if ($result->num_rows > 0) {
-                        $query = "UPDATE pages SET title='$title' WHERE filename='$page'";
+                        $query = $mysqli->prepare("UPDATE pages SET title='?' WHERE filename='?'");
+                        $query->bind_param("ss", $title, $page);
                     } else {
-                        $query = "INSERT INTO pages (filename, title) VALUES ('$page', '$title')";
+                        $query = $mysqli->prepare("INSERT INTO pages (filename, title) VALUES ('?', '?')");
+                        $query->bind_param("ss", $page, $title);
                     }
                     $result = $mysqli->query($query);
                 }
@@ -73,7 +66,8 @@
             file_put_contents("posts/" . $post, $content);
 
             if ($DB_AVAILABLE) {
-                $query = "SELECT * FROM posts WHERE filename='$post'";
+                $query = $mysqli->prepare("SELECT * FROM posts WHERE filename='?'");
+                $query->bind_param("s", $post);
                 $result = $mysqli->query($query);
 
                 if (!$result) {
@@ -81,9 +75,13 @@
                 } else {
                     $query = "";
                     if ($result->num_rows > 0) {
-                        $query = "UPDATE posts SET title='$title',subtitle='$subtitle',description='$description',author='$author',last_modified='$lastedit' WHERE filename='$post'";
+                    // "UPDATE posts SET title='$title',subtitle='$subtitle',description='$description',author='$author',last_modified='$lastedit' WHERE filename='$post'";
+                        $query = $mysqli->prepare("UPDATE posts SET title='?',subtitle='?',description='?',author='?',last_modified='?' WHERE filename='?'");
+                        $query->bind_param("ssssds", $title, $subtitle, $description, $author, $lastedit, $post); // ! Might need to change the type for $lastedit
                     } else {
-                        $query = "INSERT INTO posts (filename, title, subtitle, description, author, last_modified) VALUES ('$post', '$title', '$subtitle', '$description', '$author', '$lastedit')";
+                        $query = $mysqli->prepare("INSERT INTO posts (filename, title, subtitle, description, author, last_modified) VALUES ('?', '?', '?', '?', '?', '?')");
+                        $query->bind_param("sssssd", $post, $title, $subtitle, $description, $author, $lastedit); // ! Might need to change the type for $lastedit
+                        // $query = "INSERT INTO posts (filename, title, subtitle, description, author, last_modified) VALUES ('$post', '$title', '$subtitle', '$description', '$author', '$lastedit')";
                     }
                     $result = $mysqli->query($query);
                 }
@@ -93,36 +91,25 @@
             $action = 'posts';
         } elseif ($action == "newuser") {
             if ($DB_AVAILABLE) {
-                $query = "INSERT INTO users (username, password) VALUES ('" . $_POST['username'] . "', '" . $_POST['password'] . "')";
+                $query = $mysqli->prepare("INSERT INTO users (username, password) VALUES ('?', '?')");
+                $query->bind_param("ss", $_POST['username'], $_POST['password']);
                 $result = $mysqli->query($query);
             }
             $action = 'users';
         } elseif ($action == "deleteuser") {
             if ($DB_AVAILABLE) {
-                $result = $mysqli->query("DELETE FROM users WHERE username='" . $_POST['username'] . "'");
+                $result = $mysqli->prepare("DELETE FROM users WHERE username='?'");
+                $result->bind_param('s', $_POST['username']);
+                $result->execute();
                 $action = 'users';
             }
         } elseif ($action == "updatepassword") {
             if ($DB_AVAILABLE) {
-                $result = $mysqli->query("UPDATE users SET password='" . $_POST['password'] . "' WHERE username='" . $_SESSION['logged_in_user'] . "'");
+                $result = $mysqli->prepare("UPDATE users SET password='?' WHERE username='?'");
+                $result->bind_param("ss", $_POST['password'], $_SESSION['logged_in_user']);
+                $result->execute();
                 $action = 'users';
             }
-        } elseif ($action == "ping") {
-            echo "<pre>";
-            echo "$ ping " . $_POST['pinghost'] . "\n";
-            passthru('ping ' . $_POST['pinghost']);
-            echo "</pre>";
-            $action = 'tools';
-        } elseif ($action == "getusage") {
-            
-            $total = 0;
-            foreach ($_POST['dirs'] as $dir) {
-                $output = exec('du -d 1 -m ' . $dir);
-                $amount = explode("\t", $output)[0];
-                $total += (int)$amount;
-            }
-            echo "<pre>Disk usage is " . $total . " MB</pre>";
-            $action = 'tools';
         }
     }
 
@@ -145,18 +132,18 @@
             $action = "files";
         } elseif ($action == "removepage") {
             $page = $_GET['path'];
-            
-            $query = "DELETE FROM pages WHERE filename='$page'";
-            $mysqli->query($query);
+            $query = $mysqli->prepare("DELETE FROM pages WHERE filename='?'");
+            $query->bind_param("s", $page);
+            $query->execute();
 
             unlink("pages/" . $page);
 
             $action = 'pages';
         } elseif ($action == "removepost") {
             $post = $_GET['path'];
-            
-            $query = "DELETE FROM posts WHERE filename='$post'";
-            $mysqli->query($query);
+            $query = $mysqli->prepare("DELETE FROM posts WHERE filename='?'");
+            $query->bind_param("s", $post);
+            $query->execute();
 
             unlink("posts/" . $post);
             
@@ -190,8 +177,8 @@ if ((!array_key_exists('logged_in_user', $_SESSION)) || $_SESSION['logged_in_use
 
         $auth = false;
         if ($DB_AVAILABLE) {
-            $query = "SELECT * FROM users WHERE username='$username' AND password='$password'";
-
+            $query = $mysqli->prepare("SELECT * FROM users WHERE username='?' AND password='?'");
+            $query->bind_param("ss", $username, $password);
             $result = $mysqli->query($query);
 
             if (!$result) {
@@ -203,7 +190,7 @@ if ((!array_key_exists('logged_in_user', $_SESSION)) || $_SESSION['logged_in_use
             }
         }
 
-        if ($username == $_CONFIG->backup_user && $password == $_CONFIG->backup_password) {
+        if ($username === $_CONFIG->backup_user && $password === $_CONFIG->backup_password) {
             $auth = true;
         }
 
@@ -249,9 +236,7 @@ if ((!array_key_exists('logged_in_user', $_SESSION)) || $_SESSION['logged_in_use
                     </p>
                     <ul class="menu-list">
                         <li><a <?php if ($action=="users") { echo 'class="is-active"';} ?> href="admin.php?action=users">Users</a></li>
-                        <li><a <?php if ($action=="config") { echo 'class="is-active"';} ?> href="admin.php?action=config">Configuration</a></li>
                         <li><a <?php if ($action=="files") { echo 'class="is-active"';} ?> href="admin.php?action=files">File Management</a></li>
-                        <li><a <?php if ($action=="tools") { echo 'class="is-active"';} ?> href="admin.php?action=tools">Server Tools</a></li>
                     </ul>
                     <p class="menu-label">
                         Other
@@ -397,7 +382,8 @@ if ((!array_key_exists('logged_in_user', $_SESSION)) || $_SESSION['logged_in_use
                             }
 
                             if ($DB_AVAILABLE) {
-                                $query = "SELECT * FROM posts WHERE filename='" .$_GET['post'] . "'";
+                                $query = $mysqli->prepare("SELECT * FROM posts WHERE filename='?'");
+                                $query->bind_param("s", $_GET['post']);
                                 $result = $mysqli->query($query);
                                 if ($result && $result->num_rows > 0) {
                                     $data = $result->fetch_assoc();

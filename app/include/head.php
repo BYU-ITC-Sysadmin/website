@@ -7,7 +7,7 @@ error_reporting(E_ALL);
 
 session_start();
 
-$config_json = file_get_contents("./config.json");
+$config_json = file_get_contents("../config.json");
 $_CONFIG = json_decode($config_json);
 
 ?>
