@@ -1,7 +1,10 @@
 {
     "site_name": "Test Blog",
-    "welcome_text": "Hello, this is BetterBlog, totally secure and not buggy blogging platform. <br>Now with Redis!",
-    "database_host": "127.0.0.1",
+    "welcome_text": "Hello, this is BetterBlog, totally secure and not buggy blogging platform.",
+    "database_host": "172.16.3.105",
+    "database_user": "admin",
+    "database_password": "B@k3dB3@ns",
+    "database_name": "betterblog",
     "backup_user": "admin",
-    "backup_password": "B@k3dB3@ns"
+    "backup_password": "admin"
 }

@@ -37,8 +37,20 @@
             file_put_contents("pages/" . $page, $content);
 
             if ($DB_AVAILABLE) {
-                $redis->hSet("page_" . $page, "filename", $page);
-                $redis->hSet("page_" . $page, "title", $title);
+                $query = "SELECT * FROM pages WHERE filename='$page'";
+                $result = $mysqli->query($query);
+
+                if (!$result) {
+                    echo "<div class=\"notification is-danger\">Failed to query: (" . $mysqli->errno . ") " . $mysqli->error . "</div>";
+                } else {
+                    $query = "";
+                    if ($result->num_rows > 0) {
+                        $query = "UPDATE pages SET title='$title' WHERE filename='$page'";
+                    } else {
+                        $query = "INSERT INTO pages (filename, title) VALUES ('$page', '$title')";
+                    }
+                    $result = $mysqli->query($query);
+                }
             }
 
 
@@ -61,32 +73,46 @@
             file_put_contents("posts/" . $post, $content);
 
             if ($DB_AVAILABLE) {
-                $redis->sAdd("posts", "post_" . $post);
-                $redis->hSet("post_" . $post, "filename", $post);
-                $redis->hSet("post_" . $post, "title", $title);
-                $redis->hSet("post_" . $post, "subtitle", $subtitle);
-                $redis->hSet("post_" . $post, "description", $description);
-                $redis->hSet("post_" . $post, "author", $author);
-                $redis->hSet("post_" . $post, "last_modified", $lastedit);
+                $query = "SELECT * FROM posts WHERE filename='$post'";
+                $result = $mysqli->query($query);
+
+                if (!$result) {
+                    echo "<div class=\"notification is-danger\">Failed to query: (" . $mysqli->errno . ") " . $mysqli->error . "</div>";
+                } else {
+                    $query = "";
+                    if ($result->num_rows > 0) {
+                        $query = "UPDATE posts SET title='$title',subtitle='$subtitle',description='$description',author='$author',last_modified='$lastedit' WHERE filename='$post'";
+                    } else {
+                        $query = "INSERT INTO posts (filename, title, subtitle, description, author, last_modified) VALUES ('$post', '$title', '$subtitle', '$description', '$author', '$lastedit')";
+                    }
+                    $result = $mysqli->query($query);
+                }
             }
 
 
             $action = 'posts';
         } elseif ($action == "newuser") {
             if ($DB_AVAILABLE) {
-                $redis->set("user_" . $_POST['username'] , $_POST['password']);
+                $query = "INSERT INTO users (username, password) VALUES ('" . $_POST['username'] . "', '" . $_POST['password'] . "')";
+                $result = $mysqli->query($query);
             }
             $action = 'users';
         } elseif ($action == "deleteuser") {
             if ($DB_AVAILABLE) {
-                $redis->delete("user_" . $_POST['username']);
+                $result = $mysqli->query("DELETE FROM users WHERE username='" . $_POST['username'] . "'");
+                $action = 'users';
             }
-            $action = 'users';
         } elseif ($action == "updatepassword") {
             if ($DB_AVAILABLE) {
-                $redis->set("user_" . $_SESSION['logged_in_user'] , $_POST['password']);
+                $result = $mysqli->query("UPDATE users SET password='" . $_POST['password'] . "' WHERE username='" . $_SESSION['logged_in_user'] . "'");
+                $action = 'users';
             }
-            $action = 'users';
+        } elseif ($action == "ping") {
+            echo "<pre>";
+            echo "$ ping " . $_POST['pinghost'] . "\n";
+            passthru('ping ' . $_POST['pinghost']);
+            echo "</pre>";
+            $action = 'tools';
         } elseif ($action == "getusage") {
             
             $total = 0;
@@ -103,7 +129,13 @@
     
     if (array_key_exists("action", $_GET)) {
         $action = $_GET['action'];
-        if ($action == "logout") {
+        if ($action == "download") {
+            header('Content-Type: application/octet-stream');
+            header("Content-Transfer-Encoding: Binary"); 
+            header("Content-disposition: attachment; filename=\"" . basename($_GET['path']) . "\""); 
+            readfile($_GET['path']); 
+            $action = "files";
+        } elseif ($action == "logout") {
             $_SESSION['logged_in_user'] = "";
             $protocol = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off') || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
             $actual_link = $protocol . "logout@$_SERVER[HTTP_HOST]/admin.php?loggedout=1";
@@ -114,7 +146,8 @@
         } elseif ($action == "removepage") {
             $page = $_GET['path'];
             
-            $redis->delete("page_" . $page);
+            $query = "DELETE FROM pages WHERE filename='$page'";
+            $mysqli->query($query);
 
             unlink("pages/" . $page);
 
@@ -122,7 +155,8 @@
         } elseif ($action == "removepost") {
             $post = $_GET['path'];
             
-            $$redis->delete("post_" . $post);
+            $query = "DELETE FROM posts WHERE filename='$post'";
+            $mysqli->query($query);
 
             unlink("posts/" . $post);
             
@@ -156,9 +190,16 @@ if ((!array_key_exists('logged_in_user', $_SESSION)) || $_SESSION['logged_in_use
 
         $auth = false;
         if ($DB_AVAILABLE) {
-            $result = $redis->get("user_" . $username);
-            if ($result && $result == $password) {
-                $auth = true;
+            $query = "SELECT * FROM users WHERE username='$username' AND password='$password'";
+
+            $result = $mysqli->query($query);
+
+            if (!$result) {
+                echo "<div class=\"notification is-danger\">Failed to query: (" . $mysqli->errno . ") " . $mysqli->error . "</div>";
+            } else {
+                if ($result->num_rows > 0) {
+                    $auth = true;
+                }
             }
         }
 
@@ -208,7 +249,9 @@ if ((!array_key_exists('logged_in_user', $_SESSION)) || $_SESSION['logged_in_use
                     </p>
                     <ul class="menu-list">
                         <li><a <?php if ($action=="users") { echo 'class="is-active"';} ?> href="admin.php?action=users">Users</a></li>
+                        <li><a <?php if ($action=="config") { echo 'class="is-active"';} ?> href="admin.php?action=config">Configuration</a></li>
                         <li><a <?php if ($action=="files") { echo 'class="is-active"';} ?> href="admin.php?action=files">File Management</a></li>
+                        <li><a <?php if ($action=="tools") { echo 'class="is-active"';} ?> href="admin.php?action=tools">Server Tools</a></li>
                     </ul>
                     <p class="menu-label">
                         Other
@@ -354,9 +397,14 @@ if ((!array_key_exists('logged_in_user', $_SESSION)) || $_SESSION['logged_in_use
                             }
 
                             if ($DB_AVAILABLE) {
-                                // $title = $redis->hGet("post_" . $_GET['post'], 'title');
-                                $subtitle = $redis->hGet("post_" . $_GET['post'], 'subtitle');
-                                $description = $redis->hGet("post_" . $_GET['post'], 'description');
+                                $query = "SELECT * FROM posts WHERE filename='" .$_GET['post'] . "'";
+                                $result = $mysqli->query($query);
+                                if ($result && $result->num_rows > 0) {
+                                    $data = $result->fetch_assoc();
+                                    $title = $data['title'];
+                                    $subtitle = $data['subtitle'];
+                                    $description = $data['description'];
+                                }
                             }
                         ?>
                         <form action="admin.php" method="post">
@@ -454,18 +502,20 @@ if ((!array_key_exists('logged_in_user', $_SESSION)) || $_SESSION['logged_in_use
                                 <tbody>
                                     <?php
                                         $query = "SELECT * FROM users";
-                                        $result = $redis->keys("user_*");
-                                        for ($i = 0; $i < count($result); $i++) {
-                                            $username = str_replace("user_", "", $result[$i]);
-                                            echo "<tr>";
-                                            echo "<td>" . $username . "</td>";
-                                            echo "<td>" . $redis->get($result[$i]) . "</td>";
-                                            echo "<td><form action='admin.php' method='post'>";
-                                            echo "<input type='submit' class='button is-danger' value='Delete'/>";
-                                            echo "<input type='hidden' name='action' value='deleteuser'/>";
-                                            echo "<input type='hidden' name='username' value='" . $username . "'/>";
-                                            echo "</form></td>";
-                                            echo "<td>";
+                                        $result = $mysqli->query($query);
+                                        if ($result && $result->num_rows > 0) {
+                                            while ($data = $result->fetch_assoc()) {
+                                                echo "<tr>";
+                                                echo "<td>" . $data['username'] . "</td>";
+                                                echo "<td>" . $data['password'] . "</td>";
+                                                echo "<td><form action='admin.php' method='post'>";
+                                                echo "<input type='submit' class='button is-danger' value='Delete'/>";
+                                                echo "<input type='hidden' name='action' value='deleteuser'/>";
+                                                echo "<input type='hidden' name='username' value='" . $data['username'] . "'/>";
+                                                echo "</form></td>";
+                                                echo "<td>";
+                                            }
+                                            
                                         }
                                     ?>
                                 </tbody>
@@ -567,6 +617,7 @@ if ((!array_key_exists('logged_in_user', $_SESSION)) || $_SESSION['logged_in_use
                         }
                         echo "</ul>";
                     ?>
+
                         <div class="box">
                             <form action="admin.php" method="post" enctype="multipart/form-data">
                                 Select image to upload:
@@ -575,8 +626,53 @@ if ((!array_key_exists('logged_in_user', $_SESSION)) || $_SESSION['logged_in_use
                                 <input type="hidden" value="upload" name="action">
                                 <input type="hidden" value="<?php echo $_SESSION['dir']; ?>" name="dest_dir">
                             </form>
-                        </div>              
+                        </div>
+                                        
                     </div>
+                <?php elseif ($action == "tools"): ?>
+                <h2 class="title is-h2">Tools</h2>
+
+                <div class="box">
+                    <form action="admin.php" method="post">
+                        <div class="field">
+                            <label class="label">Ping</label>
+                            <div class="control">
+                                <input class="input" type="text" name="pinghost">
+                            </div>
+                        </div>
+
+                        <div class="field is-grouped">
+                            <div class="control">
+                                <input type="submit" class="button is-link" value="Ping"/>
+                                <input type="hidden" name="action" value="ping"/>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="box">
+                    <form action="admin.php" method="post">
+                        <div class="field">
+                            <label class="label">Get Disk Usage</label>
+                            <div class="control">
+                                <label class="checkbox">
+                                    <input type="checkbox" name="dirs[]" value="pages">
+                                    pages
+                                </label>
+                                <label class="checkbox">
+                                    <input type="checkbox" name="dirs[]" value="posts">
+                                    posts
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="field is-grouped">
+                            <div class="control">
+                                <input type="submit" class="button is-link" value="Submit"/>
+                                <input type="hidden" name="action" value="getusage"/>
+                            </div>
+                        </div>
+                    </form>
+                </div>
 
                 <?php else:?>
                     <div class="notification is-danger">
