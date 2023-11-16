@@ -141,8 +141,9 @@
 
                                 $result = $mysqli->query("SELECT COUNT(filename) AS file_count FROM posts;");
                                 $group_count = (int)($result->fetch_array()["file_count"] / $pagination_size);
-
-                                $query = "SELECT * FROM posts ORDER BY last_modified DESC LIMIT $pagination_size OFFSET " . ($offset * $pagination_size);
+                                $totalOffset = $offset * $pageination_size;
+                                $query = $mysqli->prepare("SELECT * FROM posts ORDER BY last_modified DESC LIMIT '?' OFFSET '?'");
+                                $query->bind_param("ii", $pagination_size, $totalOffset);
                                 $result = $mysqli->query($query);
                                 $dir_contents = $result->fetch_all(MYSQLI_ASSOC);
                             }   
